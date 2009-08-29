@@ -327,28 +327,46 @@ class Pachube
 	return $ret;
    } 
 
-// Actual request that retrieved Pachube data
-
-	private function getRequestToPachube ( $url='' )
+        private function _fgetc($url)
 	{
-			if(function_exists(curl_init))
-			{	
-				$pachube_headers  = array("X-PachubeApiKey: $this->Api");
+		// Create a stream
+		$opts['http']['method'] = "GET";
+		$opts['http']['header'] = "X-PachubeApiKey: ".$this->Api."\r\n";
+		$context = stream_context_create($opts);
 
-				$ch = curl_init();	
-				curl_setopt($ch, CURLOPT_URL, $url);
-				curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-				curl_setopt($ch, CURLOPT_HTTPHEADER, $pachube_headers);
-						
-				$return = curl_exec($ch);
+		// Open the file using the HTTP headers set above
+		return file_get_contents($url, false, $context);
+	}
 	
-				$headers = curl_getinfo($ch);
-				curl_close($ch);
-							
-				$ret = $return;
-				return $ret;
-			} 							
+	private function _curl($url)
+	{
+		$ch = curl_init();
+		curl_setopt($ch, CURLOPT_URL, $url);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+		curl_setopt($ch, CURLOPT_HTTPHEADER, array("X-PachubeApiKey: $this->Api"));
+
+		$ret = curl_exec($ch);
+		$headers = curl_getinfo($ch);
+		curl_close($ch);
+
+		return $ret;
+	}
+	
+	// Actual request that retrieved Pachube data
+	private function getRequestToPachube ( $url )
+	{		
+		if(function_exists('curl_init'))
+		{
+			return $this->_curl($url);
 		}
+		
+		if(function_exists('file_get_contents') && ini_get('allow_url_fopen'))
+		{
+			return $this->_fgetc($url);		
+		}
+		
+		return 999;
+	}
 
 
 
