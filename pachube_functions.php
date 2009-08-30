@@ -280,52 +280,58 @@ class Pachube
 		}
 	}
 
-
-
-
-
-
-// Actual request that makes the Pachube update
-
-	private function putRequestToPachube ( $url='', $data='')
+        private function _fputc($url,$data)
 	{
-		$ret = -1;
+		$_err = __CLASS__.'::'.__FUNCTION__."($url): ";		
+		// Create a stream
+		$opts['http']['method'] = "PUT";
+		$opts['http']['header'] = "X-PachubeApiKey: ".$this->Api."\r\n";
+		$opts['http']['header'] .= "Content-Length: " . strlen($data) . "\r\n";
+		$opts['http']['content'] = $data;	
+        
+		$context = stream_context_create($opts);
+
+		// Open the file using the HTTP headers set above
+		$ret=file_get_contents($url, false, $context);
+                if($ret==false) die('<br>'.$_err.' failed file_get_contents('.$url.')');
+		return $ret;
+	}
+
+	private function putRequestToPachube ( $url, $data)
+	{	
+		if(function_exists('curl_init'))
 		{
-			if(function_exists(curl_init))
-			{	
-				$pachube_headers  = array("X-PachubeApiKey: $this->Api");
+			$pachube_headers  = array("X-PachubeApiKey: $this->Api");
 
-    			$putData = tmpfile();
-				fwrite($putData, $data);
-				fseek($putData, 0);
-   
+			$putData = tmpfile();
+			fwrite($putData, $data);
+			fseek($putData, 0);
 
-				$ch = curl_init();	
-				curl_setopt($ch, CURLOPT_URL, $url);
-				curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-				curl_setopt($ch, CURLOPT_HTTPHEADER, $pachube_headers);
-				curl_setopt($ch, CURLOPT_INFILE, $putData); 
-				curl_setopt($ch, CURLOPT_INFILESIZE, strlen($data)); 
-				curl_setopt($ch, CURLOPT_PUT, true);
-						
-				curl_exec($ch);
-	
-				$headers = curl_getinfo($ch);
-				fclose($putData);
-				curl_close($ch);
-						
-						
-				$ret = $headers['http_code'];
-								
-			} 
-			else
-			{
-				$ret = 999;
-			}				
+			$ch = curl_init();
+			curl_setopt($ch, CURLOPT_URL, $url);
+			curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+			curl_setopt($ch, CURLOPT_HTTPHEADER, $pachube_headers);
+			curl_setopt($ch, CURLOPT_INFILE, $putData);
+			curl_setopt($ch, CURLOPT_INFILESIZE, strlen($data));
+			curl_setopt($ch, CURLOPT_PUT, true);
+
+			curl_exec($ch);
+
+			$headers = curl_getinfo($ch);
+			fclose($putData);
+			curl_close($ch);
+
+			return $headers['http_code'];
+
 		}
 		
-	return $ret;
-   } 
+		if(function_exists('file_put_contents') && ini_get('allow_url_fopen'))
+		{
+			return $this->_fputc($url,$data);
+		}
+
+		return 999;
+	}
 
         private function _fgetc($url)
 	{
